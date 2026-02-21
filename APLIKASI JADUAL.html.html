@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <title>Sistem Jadual Guru SMK Seri Rompin v27.5 (Admin Edition)</title>
+    <style>
+        :root { --primary: #2c3e50; --accent: #27ae60; --blue: #2980b9; --bg: #f4f7f6; --save: #e67e22; --lock: #c0392b; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: var(--bg); padding: 10px; font-size: 11px; color: #333; }
+        .container { background: white; padding: 25px 35px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); max-width: 1300px; margin: auto; border: 1px solid #ddd; position: relative; }
+        
+        /* Panel Admin */
+        .admin-panel { background: #ebedef; padding: 15px; border-radius: 10px; margin-bottom: 20px; display: grid; grid-template-columns: 1.2fr 1fr 1.2fr; gap: 15px; border: 2px solid var(--primary); }
+        .config-box { background: white; padding: 10px; border-radius: 6px; border: 1px solid #ccc; display: flex; flex-direction: column; }
+        
+        /* Mod Kunci */
+        body.is-locked .admin-panel { display: none !important; }
+        body.is-locked .lencana-img { cursor: default; pointer-events: none; border: none; }
+        .lock-indicator { display: none; text-align: center; color: var(--lock); font-weight: bold; margin-bottom: 10px; border: 2px solid var(--lock); padding: 8px; border-radius: 5px; background: #fff5f5; }
+        body.is-locked .lock-indicator { display: block; }
+
+        .group-btns { display: flex; gap: 5px; margin-bottom: 8px; flex-wrap: wrap; }
+        textarea { width: 100%; height: 60px; font-size: 11px; margin-top: 5px; border: 1px solid #bdc3c7; border-radius: 4px; padding: 6px; resize: none; box-sizing: border-box; }
+        select, input[type="date"] { padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px; width: 100%; font-weight: bold; font-size: 12px; background: #fff; margin-bottom: 5px; cursor: pointer; }
+        
+        .btn { padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer; color: white; font-weight: bold; transition: 0.3s; font-size: 11px; }
+        .btn-kump { background: #95a5a6; }
+        .btn-kump.active { background: var(--blue); transform: scale(1.05); border: 1px solid #000; }
+        .btn-save { background: var(--save); margin-top: 5px; }
+        .btn-lock { background: var(--lock); width: 100%; margin-top: 10px; }
+        .btn-jana { background: var(--accent); width: 100%; padding: 12px; font-size: 13px; margin-top: 10px; }
+        
+        /* Butang Unlock Jelas di Bawah Skrin */
+        .unlock-area { text-align: center; margin-top: 20px; padding: 10px; border-top: 1px solid #ddd; }
+        .btn-unlock { background: #7f8c8d; padding: 10px 20px; font-size: 12px; }
+        .btn-unlock:hover { background: #34495e; }
+        
+        table.jadual-main { width: 100%; border-collapse: collapse; margin-top: 15px; border: 2px solid black; background: white; font-size: 10px; table-layout: fixed; }
+        table.jadual-main th, table.jadual-main td { border: 1px solid black; padding: 6px 4px; text-align: center; vertical-align: middle; line-height: 1.2; }
+        table.jadual-main th { background: #f2f2f2; height: 45px; font-size: 9px; }
+        .hari-col { font-weight: bold; background: #f9f9f9; width: 70px; font-size: 11px; }
+        
+        .lencana-img { width: 90px; height: 90px; object-fit: contain; cursor: pointer; border: 1px dashed #bbb; background: #fff; padding: 2px; }
+        .info-bar { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 3px solid black; padding-bottom: 8px; margin-bottom: 10px; font-size: 11px; }
+
+        @media print { 
+            .admin-panel, .no-print, .unlock-area, .lock-indicator { display: none !important; } 
+            .container { border: none; box-shadow: none; padding: 0; width: 100%; } 
+            body { background: white; padding: 0; } 
+        }
+    </style>
+</head>
+<body class="is-locked" id="bodyID"> <div class="container">
+    <div class="lock-indicator no-print">🔒 JADUAL DIKUNCI (MOD PAPARAN SAHAJA)</div>
+
+    <div class="admin-panel no-print">
+        <div class="config-box">
+            <strong>1. Pengurusan Nama Guru</strong>
+            <div class="group-btns">
+                <button class="btn btn-kump" onclick="tukarKumpulan('A')">A</button>
+                <button class="btn btn-kump" onclick="tukarKumpulan('B')">B</button>
+                <button class="btn btn-kump" onclick="tukarKumpulan('C')">C</button>
+                <button class="btn btn-kump" onclick="tukarKumpulan('D')">D</button>
+                <button class="btn btn-kump active" onclick="tukarKumpulan('E')">E</button>
+            </div>
+            <textarea id="inputGuru" placeholder="Nama1, Nama2, Nama3..."></textarea>
+            <button class="btn btn-save" onclick="simpanDataGuru()">💾 SIMPAN NAMA</button>
+        </div>
+
+        <div class="config-box">
+            <strong>2. Jadual & Tarikh</strong>
+            <select id="selectMinggu" onchange="updateInfoPaparan()">
+                <script>for(let i=1; i<=45; i++) document.write(`<option value="${i}">Minggu ${i}</option>`);</script>
+            </select>
+            <input type="date" id="inputDate" onchange="updateInfoPaparan()">
+            <button class="btn btn-jana" onclick="janaJadual()">🚀 JANA JADUAL RAWAK</button>
+        </div>
+
+        <div class="config-box">
+            <strong>3. Pengecualian & Kawalan</strong>
+            <textarea id="inputCuti" placeholder="Cth: ALI-ISNIN"></textarea>
+            <div style="display:flex; gap:5px; margin-top:5px;">
+                <button class="btn no-print" style="background:#34495e; flex:1;" onclick="window.print()">🖨️ CETAK</button>
+                <button class="btn btn-lock" style="flex:1;" onclick="prosesKunci()">🔒 KUNCI ADMIN</button>
+            </div>
+        </div>
+    </div>
+
+    <table style="width: 100%; border: none; margin-bottom: 15px;">
+        <tr>
+            <td style="width:110px;">
+                <input type="file" id="uploadLencana" style="display:none" onchange="tukarLencana(this)">
+                <img src="https://via.placeholder.com/100x100?text=LOGO" id="imgLencana" class="lencana-img" onclick="document.getElementById('uploadLencana').click()">
+            </td>
+            <td style="text-align: center;">
+                <div style="font-size: 18px; font-weight: bold; text-decoration: underline;">BORANG PERINCIAN GURU BERTUGAS MINGGUAN 2026</div>
+                <div style="font-size: 15px; font-weight: bold; margin-top: 5px;">SMK SERI ROMPIN</div>
+            </td>
+            <td style="width:110px;"></td>
+        </tr>
+    </table>
+
+    <div class="info-bar">
+        <div style="width: 70%;">
+            <strong>KUMPULAN: <span id="dispKumpLabel">E</span></strong><br>
+            <strong>GURU:</strong> <span id="dispSenaraiGuru" style="font-size: 10px; color: #444;">-</span>
+        </div>
+        <div style="text-align: right; min-width: 220px;">
+            <strong style="font-size: 14px;">MINGGU: <span id="dispMinggu">1</span></strong><br>
+            <strong>TARIKH: <span id="dispTarikh">-</span></strong>
+        </div>
+    </div>
+
+    <table class="jadual-main">
+        <thead>
+            <tr>
+                <th class="hari-col">HARI</th>
+                <th>GURU PENYAYANG</th><th>KESELAMATAN</th><th>PERHIMPUNAN</th>
+                <th>BUKU LAPORAN</th><th>PANTAU TANDAS</th><th>KAWALAN KANTIN</th>
+                <th>KEBAJIKAN</th><th>GURU RELIEF</th>
+                <th style="background:#fffde7; width: 14%;">BACA LAPORAN</th>
+            </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+    </table>
+
+    <div style="margin-top: 40px; display: flex; justify-content: space-around; text-align: center; font-size: 11px; font-weight: bold;">
+        <div>Disediakan oleh:<br><br><br><br>____________________<br>(Ketua Kumpulan)</div>
+        <div>Disahkan oleh:<br><br><br><br>____________________<br>(Pentadbir)</div>
+    </div>
+
+    <div class="unlock-area no-print">
+        <button class="btn btn-unlock" id="btnUnlockMain" onclick="prosesBukaKunci()">🔑 AKSES GURU UTAMA (UNLOCK)</button>
+    </div>
+</div>
+
+<script>
+    const KATA_LALUAN = "Arunika93";
+    let kumpulanAktif = 'E';
+
+    // 1. Fungsi Kunci
+    function prosesKunci() {
+        let entry = prompt("Masukkan kata laluan untuk mengunci:");
+        if(entry === KATA_LALUAN) {
+            document.body.classList.add('is-locked');
+            document.getElementById('btnUnlockMain').style.display = "inline-block";
+            alert("Sistem Berjaya Dikunci.");
+        } else {
+            alert("Kata laluan salah!");
+        }
+    }
+
+    // 2. Fungsi Buka Kunci
+    function prosesBukaKunci() {
+        let entry = prompt("Masukkan Kata Laluan Guru Utama:");
+        if(entry === KATA_LALUAN) {
+            document.body.classList.remove('is-locked');
+            alert("Akses Admin Dibuka.");
+        } else {
+            alert("Kata laluan salah! Akses ditolak.");
+        }
+    }
+
+    function simpanDataGuru() {
+        const senarai = document.getElementById('inputGuru').value;
+        localStorage.setItem('guru_v27_5_' + kumpulanAktif, senarai);
+        document.getElementById('dispSenaraiGuru').innerText = senarai || "-";
+        alert('Data Kumpulan ' + kumpulanAktif + ' disimpan!');
+    }
+
+    function updateInfoPaparan() {
+        const d = document.getElementById('inputDate').value;
+        document.getElementById('dispMinggu').innerText = document.getElementById('selectMinggu').value;
+        if(d) {
+            let sD = new Date(d);
+            let day = sD.getDay();
+            let diff = sD.getDate() - day + (day === 0 ? -6 : 1);
+            let mon = new Date(sD.setDate(diff));
+            let fri = new Date(mon); fri.setDate(mon.getDate() + 4);
+            const mths = ["JANUARI", "FEBRUARI", "MAC", "APRIL", "MEI", "JUN", "JULAI", "OGOS", "SEPTEMBER", "OKTOBER", "NOVEMBER", "DISEMBER"];
+            document.getElementById('dispTarikh').innerText = `${mon.getDate()} - ${fri.getDate()} ${mths[fri.getMonth()]} 2026`;
+        }
+    }
+
+    function tukarKumpulan(k) {
+        kumpulanAktif = k;
+        document.querySelectorAll('.btn-kump').forEach(b => b.classList.toggle('active', b.innerText === k));
+        document.getElementById('dispKumpLabel').innerText = k;
+        const saved = localStorage.getItem('guru_v27_5_' + k) || "";
+        document.getElementById('inputGuru').value = saved;
+        document.getElementById('dispSenaraiGuru').innerText = saved || "-";
+    }
+
+    function tukarLencana(input) {
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = (e) => { 
+                document.getElementById('imgLencana').src = e.target.result; 
+                localStorage.setItem('logo_v27_5', e.target.result); 
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
+    function janaJadual() {
+        const list = document.getElementById('inputGuru').value.split(',').map(s => s.trim()).filter(s => s !== "");
+        const cutiLines = document.getElementById('inputCuti').value.toUpperCase().split('\n').filter(s => s.includes('-'));
+        const tbody = document.getElementById('tableBody');
+        tbody.innerHTML = '';
+
+        if(list.length < 5) { alert("Sila isi nama guru (min 5 orang)."); return; }
+        
+        const hariArr = ['ISNIN', 'SELASA', 'RABU', 'KHAMIS', 'JUMAAT'];
+        let pembaca = list[Math.floor(Math.random() * list.length)];
+        
+        hariArr.forEach((h, idx) => {
+            let tersedia = list.filter(nama => !cutiLines.some(line => {
+                let [cNama, cHari] = line.split('-').map(x => x.trim().toUpperCase());
+                return nama.toUpperCase().includes(cNama) && h === cHari;
+            }));
+            let shf = tersedia.sort(() => 0.5 - Math.random());
+            tbody.innerHTML += `<tr>
+                <td class="hari-col">${h}</td>
+                <td contenteditable="true">${shf[0]||'-'}</td><td contenteditable="true">${shf[1]||'-'}</td>
+                <td contenteditable="true">${shf[2]||'-'}</td><td contenteditable="true">${shf[3]||'-'}</td>
+                <td contenteditable="true">${shf[4]||'-'}</td><td contenteditable="true">${shf[5]||'-'}</td>
+                <td contenteditable="true">${shf[6]||'-'}</td><td contenteditable="true">${shf[7]||'-'}</td>
+                <td style="font-weight:bold">${idx === 0 ? pembaca : ""}</td>
+            </tr>`;
+        });
+    }
+
+    window.onload = () => {
+        const logo = localStorage.getItem('logo_v27_5');
+        if(logo) document.getElementById('imgLencana').src = logo;
+        document.getElementById('inputDate').value = new Date().toISOString().split('T')[0];
+        tukarKumpulan('E');
+        updateInfoPaparan();
+    };
+</script>
+</body>
+</html>
